@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Karachi Disaster Response Simulation</title>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        />
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                background: #1a1a2e;
+                color: #eee;
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            .container {
+                display: grid;
+                grid-template-columns: 320px 1fr 350px;
+                grid-template-rows: auto 1fr;
+                height: 100vh;
+                gap: 0;
+            }
+
+            /* Header */
+            .header {
+                grid-column: 1 / -1;
+                background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
+                padding: 12px 20px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 2px solid #e94560;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+                color: #e94560;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .header h1 i {
+                color: #ff6b6b;
+            }
+
+            .connection-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 8px 15px;
+                border-radius: 20px;
+                font-size: 0.85em;
+            }
+
+            .connection-status.connected {
+                background: rgba(46, 213, 115, 0.2);
+                color: #2ed573;
+            }
+            .connection-status.disconnected {
+                background: rgba(255, 71, 87, 0.2);
+                color: #ff4757;
+            }
+            .connection-status .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                animation: pulse 2s infinite;
+            }
+            .connection-status.connected .dot {
+                background: #2ed573;
+            }
+            .connection-status.disconnected .dot {
+                background: #ff4757;
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.5;
+                }
+            }
+
+            /* Left Panel - Controls */
+            .left-panel {
+                background: #16213e;
+                padding: 15px;
+                overflow-y: auto;
+                border-right: 1px solid #2a2a4a;
+            }
+
+            .panel-section {
+                background: #1a1a2e;
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 15px;
+                border: 1px solid #2a2a4a;
+            }
+
+            .panel-section h3 {
+                color: #e94560;
+                margin-bottom: 12px;
+                font-size: 0.95em;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border-bottom: 1px solid #2a2a4a;
+                padding-bottom: 8px;
+            }
+
+            /* Controls */
+            .control-group {
+                margin-bottom: 12px;
+            }
+
+            .control-group label {
+                display: block;
+                margin-bottom: 5px;
+                font-size: 0.85em;
+                color: #aaa;
+            }
+
+            select,
+            input[type="range"] {
+                width: 100%;
+                padding: 8px;
+                border-radius: 5px;
+                border: 1px solid #2a2a4a;
+                background: #16213e;
+                color: #eee;
+                font-size: 0.9em;
+            }
+
+            input[type="range"] {
+                -webkit-appearance: none;
+                height: 8px;
+                padding: 0;
+            }
+
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                background: #e94560;
+                cursor: pointer;
+            }
+
+            .intensity-value {
+                text-align: center;
+                font-size: 1.2em;
+                color: #e94560;
+                margin-top: 5px;
+            }
+
+            .btn-group {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                margin-top: 10px;
+            }
+
+            .btn {
+                padding: 10px 15px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 0.85em;
+                transition: all 0.3s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+            }
+
+            .btn-primary {
+                background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+                color: white;
+            }
+
+            .btn-primary:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+            }
+            .btn-secondary {
+                background: #2a2a4a;
+                color: #eee;
+            }
+            .btn-secondary:hover {
+                background: #3a3a5a;
+            }
+            .btn-warning {
+                background: #ffa502;
+                color: #1a1a2e;
+            }
+            .btn-danger {
+                background: #ff4757;
+                color: white;
+            }
+            .btn-success {
+                background: #2ed573;
+                color: #1a1a2e;
+            }
+
+            .btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none !important;
+            }
+
+            .btn-full {
+                grid-column: 1 / -1;
+            }
+
+            /* Status Dashboard */
+            .status-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .status-card {
+                background: #16213e;
+                border-radius: 8px;
+                padding: 12px;
+                text-align: center;
+                border: 1px solid #2a2a4a;
+            }
+
+            .status-card.full-width {
+                grid-column: 1 / -1;
+            }
+
+            .status-card .value {
+                font-size: 1.5em;
+                font-weight: bold;
+                color: #e94560;
+            }
+
+            .status-card .label {
+                font-size: 0.75em;
+                color: #888;
+                margin-top: 3px;
+            }
+
+            .status-card.phase-idle .value {
+                color: #888;
+            }
+            .status-card.phase-response .value {
+                color: #ff4757;
+            }
+            .status-card.phase-rebuild .value {
+                color: #ffa502;
+            }
+            .status-card.phase-recovered .value {
+                color: #2ed573;
+            }
+
+            /* Progress bar */
+            .progress-container {
+                background: #16213e;
+                border-radius: 5px;
+                height: 20px;
+                overflow: hidden;
+                margin-top: 8px;
+            }
+
+            .progress-bar {
+                height: 100%;
+                background: linear-gradient(90deg, #e94560, #2ed573);
+                transition: width 0.5s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.75em;
+                font-weight: bold;
+            }
+
+            /* Resources */
+            .resource-list {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .resource-item {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 10px;
+                background: #16213e;
+                border-radius: 5px;
+                font-size: 0.85em;
+            }
+
+            .resource-item i {
+                width: 24px;
+                text-align: center;
+                margin-right: 8px;
+            }
+
+            .resource-item .name {
+                flex: 1;
+            }
+            .resource-item .count {
+                font-weight: bold;
+                color: #2ed573;
+            }
+            .resource-item .count.low {
+                color: #ff4757;
+            }
+
+            /* Map container */
+            .map-container {
+                position: relative;
+                background: #0f0f23;
+            }
+
+            #map {
+                height: 100%;
+                width: 100%;
+                background: #0f0f23;
+            }
+
+            /* Right Panel - Messages & Stats */
+            .right-panel {
+                background: #16213e;
+                display: flex;
+                flex-direction: column;
+                border-left: 1px solid #2a2a4a;
+                overflow: hidden;
+            }
+
+            /* Tab Navigation */
+            .tab-nav {
+                display: flex;
+                background: #1a1a2e;
+                border-bottom: 1px solid #2a2a4a;
+            }
+
+            .tab-btn {
+                flex: 1;
+                padding: 12px;
+                border: none;
+                background: transparent;
+                color: #888;
+                cursor: pointer;
+                font-size: 0.85em;
+                transition: all 0.3s;
+            }
+
+            .tab-btn.active {
+                color: #e94560;
+                background: #16213e;
+                border-bottom: 2px solid #e94560;
+            }
+
+            .tab-btn:hover:not(.active) {
+                color: #eee;
+            }
+
+            .tab-content {
+                flex: 1;
+                overflow: hidden;
+                display: none;
+            }
+
+            .tab-content.active {
+                display: flex;
+                flex-direction: column;
+            }
+
+            /* Messages Panel */
+            .messages-container {
+                flex: 1;
+                overflow-y: auto;
+                padding: 10px;
+            }
+
+            .message-item {
+                background: #1a1a2e;
+                border-radius: 8px;
+                padding: 10px;
+                margin-bottom: 8px;
+                border-left: 3px solid #e94560;
+                font-size: 0.85em;
+                animation: slideIn 0.3s ease;
+            }
+
+            @keyframes slideIn {
+                from {
+                    transform: translateX(20px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            .message-item.alert {
+                border-color: #ff4757;
+            }
+            .message-item.plan {
+                border-color: #3498db;
+            }
+            .message-item.alloc {
+                border-color: #2ed573;
+            }
+            .message-item.repair_status {
+                border-color: #ffa502;
+            }
+
+            .message-header {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 5px;
+            }
+
+            .message-sender {
+                font-weight: bold;
+                color: #e94560;
+            }
+
+            .message-time {
+                font-size: 0.75em;
+                color: #666;
+            }
+
+            .message-type {
+                display: inline-block;
+                padding: 2px 8px;
+                border-radius: 10px;
+                font-size: 0.7em;
+                background: #2a2a4a;
+                margin-bottom: 5px;
+            }
+
+            .message-content {
+                color: #ccc;
+                line-height: 1.4;
+            }
+
+            /* Stats Panel */
+            .stats-container {
+                padding: 15px;
+                overflow-y: auto;
+            }
+
+            .stat-card {
+                background: #1a1a2e;
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 12px;
+            }
+
+            .stat-card h4 {
+                color: #e94560;
+                font-size: 0.9em;
+                margin-bottom: 10px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .stat-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 6px 0;
+                border-bottom: 1px solid #2a2a4a;
+                font-size: 0.85em;
+            }
+
+            .stat-row:last-child {
+                border-bottom: none;
+            }
+            .stat-row .label {
+                color: #888;
+            }
+            .stat-row .value {
+                font-weight: bold;
+            }
+
+            /* Legend */
+            .legend-content {
+                padding: 10px;
+            }
+
+            .legend-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 6px 0;
+                font-size: 0.8em;
+            }
+
+            .legend-icon {
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            /* Loading Overlay */
+            .loading-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(26, 26, 46, 0.9);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 2000;
+            }
+
+            .loading-overlay.hidden {
+                display: none;
+            }
+
+            .spinner {
+                width: 50px;
+                height: 50px;
+                border: 4px solid #2a2a4a;
+                border-top-color: #e94560;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .loading-text {
+                margin-top: 15px;
+                color: #888;
+            }
+
+            /* Toast notifications */
+            .toast-container {
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                z-index: 3000;
+            }
+
+            .toast {
+                background: #16213e;
+                border-radius: 8px;
+                padding: 12px 20px;
+                margin-bottom: 10px;
+                border-left: 4px solid #e94560;
+                animation: toastIn 0.3s ease;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            }
+
+            .toast.success {
+                border-color: #2ed573;
+            }
+            .toast.error {
+                border-color: #ff4757;
+            }
+            .toast.warning {
+                border-color: #ffa502;
+            }
+
+            @keyframes toastIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+
+            /* Resource Configuration Panel */
+            .resource-config {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .resource-input-group {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 6px 8px;
+                background: #16213e;
+                border-radius: 5px;
+            }
+
+            .resource-input-group i {
+                width: 20px;
+                text-align: center;
+                color: #2ed573;
+            }
+
+            .resource-input-group label {
+                flex: 1;
+                font-size: 0.8em;
+                color: #aaa;
+            }
+
+            .resource-input-group input[type="number"] {
+                width: 70px;
+                padding: 5px 8px;
+                border-radius: 4px;
+                border: 1px solid #2a2a4a;
+                background: #1a1a2e;
+                color: #eee;
+                font-size: 0.85em;
+                text-align: center;
+            }
+
+            .resource-input-group input[type="number"]:focus {
+                outline: none;
+                border-color: #e94560;
+            }
+
+            .config-toggle {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 10px;
+            }
+
+            .config-toggle input[type="checkbox"] {
+                width: 18px;
+                height: 18px;
+                accent-color: #e94560;
+            }
+
+            .config-toggle label {
+                font-size: 0.85em;
+                color: #aaa;
+            }
+
+            .resource-config.disabled {
+                opacity: 0.5;
+                pointer-events: none;
+            }
+
+            /* Agent Animation Styles */
+            @keyframes agentPulse {
+                0%,
+                100% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+                50% {
+                    transform: scale(1.2);
+                    opacity: 0.8;
+                }
+            }
+
+            @keyframes agentMoving {
+                0%,
+                100% {
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+                }
+                50% {
+                    box-shadow: 0 4px 16px rgba(233, 69, 96, 0.6);
+                }
+            }
+
+            .agent-marker-moving {
+                animation: agentMoving 0.8s ease-in-out infinite;
+            }
+
+            .agent-marker-responding {
+                animation: agentPulse 1.5s ease-in-out infinite;
+            }
+
+            /* Travel path styles */
+            .travel-path {
+                stroke-dasharray: 10, 10;
+                animation: dash 1s linear infinite;
+            }
+
+            @keyframes dash {
+                to {
+                    stroke-dashoffset: -20;
+                }
+            }
+
+            /* Responsive */
+            @media (max-width: 1200px) {
+                .container {
+                    grid-template-columns: 280px 1fr 300px;
+                }
+            }
+
+            @media (max-width: 900px) {
+                .container {
+                    grid-template-columns: 1fr;
+                    grid-template-rows: auto auto 1fr auto;
+                }
+                .left-panel,
+                .right-panel {
+                    max-height: 300px;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <!-- Header -->
+            <header class="header">
+                <h1>
+                    <i class="fas fa-shield-alt"></i> Karachi Disaster Response
+                    System
+                </h1>
+                <div
+                    id="connectionStatus"
+                    class="connection-status disconnected"
+                >
+                    <span class="dot"></span>
+                    <span class="text">Connecting...</span>
+                </div>
+            </header>
+
+            <!-- Left Panel - Controls -->
+            <aside class="left-panel">
+                <!-- Disaster Controls -->
+                <div class="panel-section">
+                    <h3><i class="fas fa-bolt"></i> Disaster Controls</h3>
+                    <div class="control-group">
+                        <label>Disaster Type</label>
+                        <select id="scenarioSelect">
+                            <option value="earthquake">🌋 Earthquake</option>
+                            <option value="flood">🌊 Flood</option>
+                            <option value="wildfire">🔥 Wildfire</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>Intensity</label>
+                        <input
+                            type="range"
+                            id="intensitySlider"
+                            min="0.1"
+                            max="1.0"
+                            step="0.1"
+                            value="0.8"
+                        />
+                        <div class="intensity-value" id="intensityValue">
+                            0.8
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" id="btnStart">
+                            <i class="fas fa-play"></i> Start
+                        </button>
+                        <button class="btn btn-warning" id="btnPause">
+                            <i class="fas fa-pause"></i> Pause
+                        </button>
+                        <button class="btn btn-danger" id="btnReset">
+                            <i class="fas fa-redo"></i> Reset
+                        </button>
+                        <button class="btn btn-secondary" id="btnStep">
+                            <i class="fas fa-step-forward"></i> Step
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Resource Configuration -->
+                <div class="panel-section">
+                    <h3>
+                        <i class="fas fa-sliders-h"></i> Resource Configuration
+                    </h3>
+                    <div class="config-toggle">
+                        <input type="checkbox" id="customResourcesToggle" />
+                        <label for="customResourcesToggle"
+                            >Use Custom Resources</label
+                        >
+                    </div>
+                    <div
+                        class="resource-config disabled"
+                        id="resourceConfigPanel"
+                    >
+                        <div class="resource-input-group">
+                            <i class="fas fa-ambulance"></i>
+                            <label>Ambulances</label>
+                            <input
+                                type="number"
+                                id="inputAmbulances"
+                                min="0"
+                                max="50"
+                                value="5"
+                            />
+                        </div>
+                        <div class="resource-input-group">
+                            <i class="fas fa-helicopter"></i>
+                            <label>Drones</label>
+                            <input
+                                type="number"
+                                id="inputDrones"
+                                min="0"
+                                max="30"
+                                value="3"
+                            />
+                        </div>
+                        <div class="resource-input-group">
+                            <i class="fas fa-first-aid"></i>
+                            <label>Medical Kits</label>
+                            <input
+                                type="number"
+                                id="inputMedicalKits"
+                                min="0"
+                                max="200"
+                                value="40"
+                            />
+                        </div>
+                        <div class="resource-input-group">
+                            <i class="fas fa-hard-hat"></i>
+                            <label>Repair Crews</label>
+                            <input
+                                type="number"
+                                id="inputRepairCrews"
+                                min="0"
+                                max="20"
+                                value="2"
+                            />
+                        </div>
+                        <div class="resource-input-group">
+                            <i class="fas fa-utensils"></i>
+                            <label>Food Packs</label>
+                            <input
+                                type="number"
+                                id="inputFoodPacks"
+                                min="0"
+                                max="500"
+                                value="50"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Dashboard -->
+                <div class="panel-section">
+                    <h3><i class="fas fa-chart-line"></i> Status Dashboard</h3>
+                    <div class="status-grid">
+                        <div class="status-card" id="phaseCard">
+                            <div class="value" id="phaseValue">IDLE</div>
+                            <div class="label">Phase</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="value" id="timeStepValue">0</div>
+                            <div class="label">Time Step</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="value" id="victimsValue">0</div>
+                            <div class="label">Victims</div>
+                        </div>
+                        <div class="status-card">
+                            <div class="value" id="savedValue">0</div>
+                            <div class="label">Saved</div>
+                        </div>
+                        <div class="status-card full-width">
+                            <div class="label">Rebuild Progress</div>
+                            <div class="progress-container">
+                                <div
+                                    class="progress-bar"
+                                    id="rebuildProgress"
+                                    style="width: 0%"
+                                >
+                                    0%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resources -->
+                <div class="panel-section">
+                    <h3><i class="fas fa-boxes"></i> Resources</h3>
+                    <div class="resource-list" id="resourceList">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Map Container -->
+            <main class="map-container">
+                <div id="map"></div>
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Loading simulation...</div>
+                </div>
+            </main>
+
+            <!-- Right Panel - Messages & Stats -->
+            <aside class="right-panel">
+                <nav class="tab-nav">
+                    <button class="tab-btn active" data-tab="messages">
+                        <i class="fas fa-comments"></i> Messages
+                    </button>
+                    <button class="tab-btn" data-tab="stats">
+                        <i class="fas fa-chart-bar"></i> Stats
+                    </button>
+                    <button class="tab-btn" data-tab="legend">
+                        <i class="fas fa-map-marker-alt"></i> Legend
+                    </button>
+                </nav>
+
+                <!-- Messages Tab -->
+                <div class="tab-content active" id="messagesTab">
+                    <div class="messages-container" id="messagesContainer">
+                        <div class="message-item">
+                            <div class="message-content">
+                                <i class="fas fa-info-circle"></i> Waiting for
+                                simulation to start...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats Tab -->
+                <div class="tab-content" id="statsTab">
+                    <div class="stats-container" id="statsContainer">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Legend Tab -->
+                <div class="tab-content" id="legendTab">
+                    <div class="legend-content">
+                        <h4 style="color: #e94560; margin-bottom: 15px">
+                            Location Types
+                        </h4>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-building"
+                                    style="color: #27ae60"
+                                ></i>
+                            </div>
+                            <span>District Center</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-home"
+                                    style="color: #3498db"
+                                ></i>
+                            </div>
+                            <span>Residential Area</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-store"
+                                    style="color: #f39c12"
+                                ></i>
+                            </div>
+                            <span>Commercial Area</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-industry"
+                                    style="color: #7f8c8d"
+                                ></i>
+                            </div>
+                            <span>Industrial Area</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-landmark"
+                                    style="color: #9b59b6"
+                                ></i>
+                            </div>
+                            <span>Landmark</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-hospital"
+                                    style="color: #e74c3c"
+                                ></i>
+                            </div>
+                            <span>Hospital/Medical</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-fire-extinguisher"
+                                    style="color: #e74c3c"
+                                ></i>
+                            </div>
+                            <span>Fire Station</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-broadcast-tower"
+                                    style="color: #1abc9c"
+                                ></i>
+                            </div>
+                            <span>PDMA (Command)</span>
+                        </div>
+
+                        <h4 style="color: #e94560; margin: 20px 0 15px">
+                            Agents
+                        </h4>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-user-shield"
+                                    style="color: #e94560"
+                                ></i>
+                            </div>
+                            <span>Coordinator</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-ambulance"
+                                    style="color: #2ed573"
+                                ></i>
+                            </div>
+                            <span>Ambulance</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-helicopter"
+                                    style="color: #3498db"
+                                ></i>
+                            </div>
+                            <span>Drone</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-icon">
+                                <i
+                                    class="fas fa-hard-hat"
+                                    style="color: #ffa502"
+                                ></i>
+                            </div>
+                            <span>Repair Crew</span>
+                        </div>
+
+                        <h4 style="color: #e94560; margin: 20px 0 15px">
+                            Roads
+                        </h4>
+                        <div class="legend-item">
+                            <div
+                                class="legend-icon"
+                                style="
+                                    width: 30px;
+                                    height: 4px;
+                                    background: #3498db;
+                                "
+                            ></div>
+                            <span>Open Road</span>
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-icon"
+                                style="
+                                    width: 30px;
+                                    height: 4px;
+                                    background: #e74c3c;
+                                "
+                            ></div>
+                            <span>Blocked Road</span>
+                        </div>
+                        <div class="legend-item">
+                            <div
+                                class="legend-icon"
+                                style="
+                                    width: 30px;
+                                    height: 6px;
+                                    background: #3498db;
+                                "
+                            ></div>
+                            <span>Highway</span>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+
+        <!-- Toast Container -->
+        <div class="toast-container" id="toastContainer"></div>
+
+        <script>
+            // ============================================
+            // Configuration
+            // ============================================
+            const API_BASE = "http://127.0.0.1:8000";
+            const WS_URL = "ws://127.0.0.1:8000/ws";
+            const KARACHI_CENTER = [24.86, 67.05];
+
+            // ============================================
+            // State
+            // ============================================
+            let map = null;
+            let ws = null;
+            let isConnected = false;
+            let isPaused = false;
+            let markers = [];
+            let polylines = [];
+            let agentMarkers = [];
+            let agentPaths = []; // Travel path polylines for agents
+            let nodeMap = {};
+            let useCustomResources = false;
+
+            // Icon definitions
+            const ICONS = {
+                // Location icons
+                district_center: {
+                    icon: "building",
+                    color: "#27ae60",
+                    size: "large",
+                },
+                residential: { icon: "home", color: "#3498db", size: "medium" },
+                commercial: { icon: "store", color: "#f39c12", size: "medium" },
+                industrial: {
+                    icon: "industry",
+                    color: "#7f8c8d",
+                    size: "medium",
+                },
+                landmark: {
+                    icon: "landmark",
+                    color: "#9b59b6",
+                    size: "medium",
+                },
+                public_service: {
+                    icon: "hospital",
+                    color: "#e74c3c",
+                    size: "small",
+                },
+
+                // Agent icons
+                coordinator: { icon: "user-shield", color: "#e94560" },
+                planner: { icon: "map-marked-alt", color: "#3498db" },
+                ambulance: { icon: "ambulance", color: "#2ed573" },
+                drone: { icon: "helicopter", color: "#3498db" },
+                medical: { icon: "first-aid", color: "#e74c3c" },
+                repair_crew: { icon: "hard-hat", color: "#ffa502" },
+            };
+
+            // Resource icons
+            const RESOURCE_ICONS = {
+                ambulances: "ambulance",
+                drones: "helicopter",
+                medical_kits: "first-aid",
+                repair_crews: "hard-hat",
+                food_packs: "utensils",
+            };
+
+            // ============================================
+            // Initialize
+            // ============================================
+            document.addEventListener("DOMContentLoaded", () => {
+                initMap();
+                initEventListeners();
+                initTabs();
+                connectWebSocket();
+                loadInitialData();
+            });
+
+            // ============================================
+            // Map Functions
+            // ============================================
+            function initMap() {
+                map = L.map("map", {
+                    center: KARACHI_CENTER,
+                    zoom: 11,
+                    zoomControl: true,
+                });
+
+                // Add OpenStreetMap tiles
+                L.tileLayer(
+                    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    {
+                        attribution: "© OpenStreetMap contributors",
+                        maxZoom: 18,
+                    }
+                ).addTo(map);
+
+                // Add scale control
+                L.control.scale().addTo(map);
+            }
+
+            function createCustomIcon(
+                type,
+                isAffected = false,
+                isAgent = false
+            ) {
+                const config = ICONS[type] || ICONS.residential;
+                let size =
+                    config.size === "large"
+                        ? 28
+                        : config.size === "small"
+                        ? 18
+                        : 22;
+                if (isAgent) size = 24;
+
+                const borderColor = isAffected
+                    ? "#ff4757"
+                    : isAgent
+                    ? "#fff"
+                    : "#333";
+                const borderWidth = isAffected ? 3 : 2;
+
+                return L.divIcon({
+                    className: "custom-marker",
+                    html: `
+                    <div style="
+                        background: ${config.color};
+                        width: ${size}px;
+                        height: ${size}px;
+                        border-radius: 50%;
+                        border: ${borderWidth}px solid ${borderColor};
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                        ${isAffected ? "animation: pulse 1s infinite;" : ""}
+                    ">
+                        <i class="fas fa-${
+                            config.icon
+                        }" style="color: white; font-size: ${
+                        size * 0.5
+                    }px;"></i>
+                    </div>
+                `,
+                    iconSize: [size + 4, size + 4],
+                    iconAnchor: [(size + 4) / 2, (size + 4) / 2],
+                });
+            }
+
+            function clearMapLayers() {
+                markers.forEach((m) => map.removeLayer(m));
+                polylines.forEach((p) => map.removeLayer(p));
+                agentMarkers.forEach((m) => map.removeLayer(m));
+                markers = [];
+                polylines = [];
+                agentMarkers = [];
+            }
+
+            function updateMap(data) {
+                if (!data || !data.nodes) return;
+
+                clearMapLayers();
+                nodeMap = {};
+
+                const nodes = data.nodes || [];
+                const edges = data.edges || [];
+                const affectedNodes = new Set(data.affected_nodes || []);
+
+                // Build node map for quick lookup
+                nodes.forEach((node) => {
+                    nodeMap[node.id] = node;
+                });
+
+                // Draw edges (roads)
+                edges.forEach((edge) => {
+                    const fromNode = nodeMap[edge.from];
+                    const toNode = nodeMap[edge.to];
+
+                    if (fromNode && toNode) {
+                        const isBlocked = edge.blocked;
+                        const isHighway = edge.type === "highway";
+
+                        const polyline = L.polyline(
+                            [
+                                [fromNode.lat, fromNode.lng],
+                                [toNode.lat, toNode.lng],
+                            ],
+                            {
+                                color: isBlocked ? "#e74c3c" : "#3498db",
+                                weight: isHighway ? 5 : 3,
+                                opacity: isBlocked ? 0.8 : 0.6,
+                                dashArray: isBlocked ? "10, 10" : null,
+                            }
+                        );
+
+                        polyline.bindPopup(`
+                        <b>${fromNode.name} → ${toNode.name}</b><br>
+                        Type: ${edge.type}<br>
+                        Distance: ${edge.distance} km<br>
+                        Status: ${isBlocked ? "🚫 Blocked" : "✅ Open"}
+                    `);
+
+                        polyline.addTo(map);
+                        polylines.push(polyline);
+                    }
+                });
+
+                // Draw nodes
+                nodes.forEach((node) => {
+                    const isAffected = affectedNodes.has(node.id);
+                    let iconType = node.type;
+
+                    // Special icons for specific locations
+                    if (node.name.includes("Fire Station")) {
+                        iconType = "public_service";
+                    } else if (node.name.includes("PDMA")) {
+                        iconType = "public_service";
+                    } else if (node.name.includes("Airport")) {
+                        iconType = "landmark";
+                    }
+
+                    const icon = createCustomIcon(iconType, isAffected);
+
+                    const marker = L.marker([node.lat, node.lng], { icon });
+
+                    let popupContent = `
+                    <div style="min-width: 180px;">
+                        <h4 style="margin: 0 0 8px 0; color: #e94560;">${
+                            node.name
+                        }</h4>
+                        <p style="margin: 4px 0;"><b>Type:</b> ${node.type}</p>
+                        ${
+                            node.population > 0
+                                ? `<p style="margin: 4px 0;"><b>Population:</b> ${node.population.toLocaleString()}</p>`
+                                : ""
+                        }
+                        <p style="margin: 4px 0;"><b>Status:</b> ${
+                            isAffected ? "⚠️ Affected" : "✅ Normal"
+                        }</p>
+                    </div>
+                `;
+
+                    marker.bindPopup(popupContent);
+                    marker.addTo(map);
+                    markers.push(marker);
+                });
+            }
+
+            function updateAgentPositions(agents) {
+                // Clear existing agent markers and paths
+                agentMarkers.forEach((m) => map.removeLayer(m));
+                agentMarkers = [];
+                agentPaths.forEach((p) => map.removeLayer(p));
+                agentPaths = [];
+
+                if (!agents || !agents.length) return;
+
+                agents.forEach((agent) => {
+                    const icon = createCustomIcon(agent.type, false, true);
+
+                    // Determine animation class based on status
+                    let animClass = "";
+                    if (
+                        agent.status === "dispatched" ||
+                        agent.status === "returning"
+                    ) {
+                        animClass = "agent-marker-moving";
+                    } else if (agent.status === "responding") {
+                        animClass = "agent-marker-responding";
+                    }
+
+                    const marker = L.marker([agent.lat, agent.lng], {
+                        icon,
+                        className: animClass,
+                    });
+
+                    // Enhanced popup with progress
+                    const progressBar =
+                        agent.progress !== undefined && agent.progress < 1
+                            ? `<div style="margin-top: 8px; background: #333; border-radius: 4px; overflow: hidden;">
+                             <div style="width: ${Math.round(
+                                 agent.progress * 100
+                             )}%; height: 6px; background: linear-gradient(90deg, #2ed573, #e94560);"></div>
+                           </div>
+                           <p style="margin: 4px 0; font-size: 0.85em; color: #888;">Progress: ${Math.round(
+                               agent.progress * 100
+                           )}%</p>`
+                            : "";
+
+                    marker.bindPopup(`
+                    <div style="min-width: 180px;">
+                        <h4 style="margin: 0 0 8px 0; color: #e94560;">${
+                            agent.agent
+                        }</h4>
+                        <p style="margin: 4px 0;"><b>Type:</b> ${agent.type.replace(
+                            "_",
+                            " "
+                        )}</p>
+                        <p style="margin: 4px 0;"><b>Status:</b> <span style="color: ${getStatusColor(
+                            agent.status
+                        )}">${formatStatus(agent.status)}</span></p>
+                        ${
+                            agent.target_node
+                                ? `<p style="margin: 4px 0;"><b>Target:</b> ${agent.target_node}</p>`
+                                : ""
+                        }
+                        ${progressBar}
+                    </div>
+                    `);
+
+                    marker.addTo(map);
+                    agentMarkers.push(marker);
+
+                    // Draw travel path if agent is moving
+                    if (
+                        agent.path &&
+                        (agent.status === "dispatched" ||
+                            agent.status === "returning")
+                    ) {
+                        const pathColor = getAgentPathColor(agent.type);
+                        const path = L.polyline(
+                            [
+                                [agent.path.start_lat, agent.path.start_lng],
+                                [agent.path.target_lat, agent.path.target_lng],
+                            ],
+                            {
+                                color: pathColor,
+                                weight: 3,
+                                opacity: 0.7,
+                                dashArray: "10, 10",
+                                className: "travel-path",
+                            }
+                        );
+                        path.addTo(map);
+                        agentPaths.push(path);
+                    }
+                });
+            }
+
+            function getStatusColor(status) {
+                const colors = {
+                    dispatched: "#ffa502",
+                    responding: "#2ed573",
+                    returning: "#3742fa",
+                    coordinating: "#a55eea",
+                    planning_routes: "#1e90ff",
+                    scanning: "#00d2d3",
+                    complete: "#2ed573",
+                    idle: "#aaa",
+                };
+                return colors[status] || "#aaa";
+            }
+
+            function formatStatus(status) {
+                return status
+                    .split("_")
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(" ");
+            }
+
+            function getAgentPathColor(type) {
+                const colors = {
+                    ambulance: "#ff4757",
+                    drone: "#2ed573",
+                    medical: "#1e90ff",
+                    repair_crew: "#ffa502",
+                };
+                return colors[type] || "#e94560";
+            }
+
+            // ============================================
+            // WebSocket Functions
+            // ============================================
+            function connectWebSocket() {
+                if (ws && ws.readyState === WebSocket.OPEN) return;
+
+                ws = new WebSocket(WS_URL);
+
+                ws.onopen = () => {
+                    isConnected = true;
+                    updateConnectionStatus(true);
+                    showToast("Connected to simulation server", "success");
+                    hideLoading();
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        handleSimulationUpdate(data);
+                    } catch (e) {
+                        console.error("Error parsing WebSocket message:", e);
+                    }
+                };
+
+                ws.onclose = () => {
+                    isConnected = false;
+                    updateConnectionStatus(false);
+                    // Attempt to reconnect after 3 seconds
+                    setTimeout(connectWebSocket, 3000);
+                };
+
+                ws.onerror = (error) => {
+                    console.error("WebSocket error:", error);
+                    showToast("Connection error. Retrying...", "error");
+                };
+            }
+
+            function updateConnectionStatus(connected) {
+                const el = document.getElementById("connectionStatus");
+                el.className = `connection-status ${
+                    connected ? "connected" : "disconnected"
+                }`;
+                el.querySelector(".text").textContent = connected
+                    ? "Connected"
+                    : "Disconnected";
+            }
+
+            // ============================================
+            // Data Handling
+            // ============================================
+            async function loadInitialData() {
+                try {
+                    const response = await fetch(`${API_BASE}/grid`);
+                    const data = await response.json();
+
+                    if (data.status === "success" || data.nodes) {
+                        updateMap(data);
+                    }
+
+                    hideLoading();
+                } catch (error) {
+                    console.error("Error loading initial data:", error);
+                    showToast("Failed to load map data", "error");
+                }
+            }
+
+            function handleSimulationUpdate(data) {
+                if (!data) return;
+
+                const env = data.environment || {};
+                const messages = data.messages || [];
+                const agents = data.agents || [];
+
+                // Update map with grid data
+                updateMap(env);
+
+                // Update agent positions
+                updateAgentPositions(agents);
+
+                // Update status dashboard
+                updateStatusDashboard(env);
+
+                // Update resources
+                updateResources(env.resources || {});
+
+                // Add new messages
+                addMessages(messages);
+
+                // Update stats
+                updateStats(env);
+            }
+
+            function updateStatusDashboard(env) {
+                // Phase
+                const phase = env.phase || "idle";
+                const phaseCard = document.getElementById("phaseCard");
+                phaseCard.className = `status-card phase-${phase}`;
+                document.getElementById("phaseValue").textContent =
+                    phase.toUpperCase();
+
+                // Time step
+                document.getElementById("timeStepValue").textContent =
+                    env.time_step || 0;
+
+                // Victims
+                const victimsEl = document.getElementById("victimsValue");
+                victimsEl.textContent = env.victims || 0;
+                victimsEl.style.color = env.victims > 0 ? "#ff4757" : "#2ed573";
+
+                // Saved
+                document.getElementById("savedValue").textContent =
+                    env.victims_saved || 0;
+
+                // Rebuild progress
+                const progress = env.rebuild_progress || 0;
+                const progressBar = document.getElementById("rebuildProgress");
+                progressBar.style.width = `${progress}%`;
+                progressBar.textContent = `${Math.round(progress)}%`;
+            }
+
+            function updateResources(resources) {
+                const container = document.getElementById("resourceList");
+                container.innerHTML = "";
+
+                Object.entries(resources).forEach(([name, count]) => {
+                    const icon = RESOURCE_ICONS[name] || "box";
+                    const displayName = name
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (l) => l.toUpperCase());
+                    const isLow = count < 3;
+
+                    container.innerHTML += `
+                    <div class="resource-item">
+                        <i class="fas fa-${icon}" style="color: ${
+                        isLow ? "#ff4757" : "#2ed573"
+                    };"></i>
+                        <span class="name">${displayName}</span>
+                        <span class="count ${
+                            isLow ? "low" : ""
+                        }">${count}</span>
+                    </div>
+                `;
+                });
+            }
+
+            function addMessages(messages) {
+                if (!messages.length) return;
+
+                const container = document.getElementById("messagesContainer");
+
+                messages.forEach((msg) => {
+                    const messageEl = document.createElement("div");
+                    messageEl.className = `message-item ${msg.type || ""}`;
+
+                    const time = msg.ts
+                        ? new Date(msg.ts * 1000).toLocaleTimeString()
+                        : "";
+                    const payload = msg.payload || {};
+
+                    messageEl.innerHTML = `
+                    <div class="message-header">
+                        <span class="message-sender">${
+                            msg.sender || "System"
+                        }</span>
+                        <span class="message-time">${time}</span>
+                    </div>
+                    <span class="message-type">${msg.type || "info"}</span>
+                    <div class="message-content">
+                        ${
+                            payload.message ||
+                            JSON.stringify(payload).substring(0, 100)
+                        }
+                    </div>
+                `;
+
+                    container.insertBefore(messageEl, container.firstChild);
+                });
+
+                // Limit messages in view
+                while (container.children.length > 50) {
+                    container.removeChild(container.lastChild);
+                }
+            }
+
+            function updateStats(env) {
+                const container = document.getElementById("statsContainer");
+                const stats = env.stats || {};
+
+                container.innerHTML = `
+                <div class="stat-card">
+                    <h4><i class="fas fa-users"></i> Victims</h4>
+                    <div class="stat-row">
+                        <span class="label">Initial</span>
+                        <span class="value">${
+                            stats.total_victims_initial || 0
+                        }</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Current</span>
+                        <span class="value" style="color: ${
+                            env.victims > 0 ? "#ff4757" : "#2ed573"
+                        };">${env.victims || 0}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Saved</span>
+                        <span class="value" style="color: #2ed573;">${
+                            env.victims_saved || 0
+                        }</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <h4><i class="fas fa-clock"></i> Timing</h4>
+                    <div class="stat-row">
+                        <span class="label">Current Step</span>
+                        <span class="value">${env.time_step || 0}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Total Steps</span>
+                        <span class="value">${
+                            stats.total_time_steps || 0
+                        }</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Disasters Completed</span>
+                        <span class="value">${
+                            stats.disasters_completed || 0
+                        }</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <h4><i class="fas fa-thermometer-half"></i> Conditions</h4>
+                    <div class="stat-row">
+                        <span class="label">Scenario</span>
+                        <span class="value">${env.scenario || "None"}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Seismic Level</span>
+                        <span class="value">${(env.seismic_level || 0).toFixed(
+                            2
+                        )}</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Aftershock</span>
+                        <span class="value">${
+                            env.aftershock ? "⚠️ Yes" : "✅ No"
+                        }</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="label">Roads Blocked</span>
+                        <span class="value">${
+                            env.roads_blocked ? "🚫 Yes" : "✅ No"
+                        }</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <h4><i class="fas fa-tools"></i> Resources Used</h4>
+                    ${Object.entries(env.resources_used || {})
+                        .map(
+                            ([name, count]) => `
+                        <div class="stat-row">
+                            <span class="label">${name.replace(
+                                /_/g,
+                                " "
+                            )}</span>
+                            <span class="value">${count}</span>
+                        </div>
+                    `
+                        )
+                        .join("")}
+                </div>
+            `;
+            }
+
+            // ============================================
+            // API Functions
+            // ============================================
+            async function apiCall(endpoint, method = "GET", body = null) {
+                try {
+                    const options = {
+                        method,
+                        headers: { "Content-Type": "application/json" },
+                    };
+
+                    if (body) {
+                        options.body = JSON.stringify(body);
+                    }
+
+                    const response = await fetch(
+                        `${API_BASE}${endpoint}`,
+                        options
+                    );
+                    return await response.json();
+                } catch (error) {
+                    console.error(`API error (${endpoint}):`, error);
+                    throw error;
+                }
+            }
+
+            async function startDisaster() {
+                const scenario =
+                    document.getElementById("scenarioSelect").value;
+                const intensity = parseFloat(
+                    document.getElementById("intensitySlider").value
+                );
+
+                // Build request body
+                const requestBody = {
+                    scenario,
+                    intensity,
+                };
+
+                // Add custom resources if enabled
+                if (useCustomResources) {
+                    requestBody.resources = {
+                        ambulances:
+                            parseInt(
+                                document.getElementById("inputAmbulances").value
+                            ) || 5,
+                        drones:
+                            parseInt(
+                                document.getElementById("inputDrones").value
+                            ) || 3,
+                        medical_kits:
+                            parseInt(
+                                document.getElementById("inputMedicalKits")
+                                    .value
+                            ) || 40,
+                        repair_crews:
+                            parseInt(
+                                document.getElementById("inputRepairCrews")
+                                    .value
+                            ) || 2,
+                        food_packs:
+                            parseInt(
+                                document.getElementById("inputFoodPacks").value
+                            ) || 50,
+                    };
+                }
+
+                try {
+                    const result = await apiCall("/start", "POST", requestBody);
+
+                    if (result.status === "success") {
+                        showToast(
+                            `${
+                                scenario.charAt(0).toUpperCase() +
+                                scenario.slice(1)
+                            } started!${
+                                useCustomResources ? " (Custom resources)" : ""
+                            }`,
+                            "success"
+                        );
+                        isPaused = false;
+                        document.getElementById("btnPause").innerHTML =
+                            '<i class="fas fa-pause"></i> Pause';
+                    } else {
+                        showToast(
+                            result.message || "Failed to start disaster",
+                            "error"
+                        );
+                    }
+                } catch (error) {
+                    showToast("Error starting disaster", "error");
+                }
+            }
+
+            async function togglePause() {
+                try {
+                    const result = await apiCall("/pause", "POST");
+
+                    if (result.status === "success") {
+                        isPaused = result.simulation_state === "paused";
+                        const btn = document.getElementById("btnPause");
+                        btn.innerHTML = isPaused
+                            ? '<i class="fas fa-play"></i> Resume'
+                            : '<i class="fas fa-pause"></i> Pause';
+                        showToast(
+                            `Simulation ${result.simulation_state}`,
+                            "success"
+                        );
+                    }
+                } catch (error) {
+                    showToast("Error toggling pause", "error");
+                }
+            }
+
+            async function resetSimulation() {
+                try {
+                    const result = await apiCall("/reset", "POST");
+
+                    if (result.status === "success") {
+                        showToast("Simulation reset", "success");
+                        isPaused = false;
+                        document.getElementById("btnPause").innerHTML =
+                            '<i class="fas fa-pause"></i> Pause';
+
+                        // Clear messages
+                        document.getElementById(
+                            "messagesContainer"
+                        ).innerHTML = `
+                        <div class="message-item">
+                            <div class="message-content">
+                                <i class="fas fa-info-circle"></i> Simulation reset. Ready to start.
+                            </div>
+                        </div>
+                    `;
+
+                        // Reload map
+                        loadInitialData();
+                    }
+                } catch (error) {
+                    showToast("Error resetting simulation", "error");
+                }
+            }
+
+            async function stepSimulation() {
+                try {
+                    const result = await apiCall("/step");
+
+                    if (result.status === "idle") {
+                        showToast("Start a disaster first", "warning");
+                    } else if (result.environment) {
+                        handleSimulationUpdate(result);
+                    }
+                } catch (error) {
+                    showToast("Error stepping simulation", "error");
+                }
+            }
+
+            // ============================================
+            // UI Functions
+            // ============================================
+            function initEventListeners() {
+                // Intensity slider
+                const slider = document.getElementById("intensitySlider");
+                slider.addEventListener("input", () => {
+                    document.getElementById("intensityValue").textContent =
+                        slider.value;
+                });
+
+                // Custom resources toggle
+                const customToggle = document.getElementById(
+                    "customResourcesToggle"
+                );
+                const resourcePanel = document.getElementById(
+                    "resourceConfigPanel"
+                );
+                customToggle.addEventListener("change", () => {
+                    useCustomResources = customToggle.checked;
+                    if (useCustomResources) {
+                        resourcePanel.classList.remove("disabled");
+                    } else {
+                        resourcePanel.classList.add("disabled");
+                    }
+                });
+
+                // Buttons
+                document
+                    .getElementById("btnStart")
+                    .addEventListener("click", startDisaster);
+                document
+                    .getElementById("btnPause")
+                    .addEventListener("click", togglePause);
+                document
+                    .getElementById("btnReset")
+                    .addEventListener("click", resetSimulation);
+                document
+                    .getElementById("btnStep")
+                    .addEventListener("click", stepSimulation);
+            }
+
+            function initTabs() {
+                const tabBtns = document.querySelectorAll(".tab-btn");
+
+                tabBtns.forEach((btn) => {
+                    btn.addEventListener("click", () => {
+                        const tabId = btn.dataset.tab;
+
+                        // Update buttons
+                        tabBtns.forEach((b) => b.classList.remove("active"));
+                        btn.classList.add("active");
+
+                        // Update content
+                        document
+                            .querySelectorAll(".tab-content")
+                            .forEach((content) => {
+                                content.classList.remove("active");
+                            });
+                        document
+                            .getElementById(`${tabId}Tab`)
+                            .classList.add("active");
+                    });
+                });
+            }
+
+            function showToast(message, type = "info") {
+                const container = document.getElementById("toastContainer");
+                const toast = document.createElement("div");
+                toast.className = `toast ${type}`;
+                toast.innerHTML = message;
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
+            }
+
+            function showLoading() {
+                document
+                    .getElementById("loadingOverlay")
+                    .classList.remove("hidden");
+            }
+
+            function hideLoading() {
+                document
+                    .getElementById("loadingOverlay")
+                    .classList.add("hidden");
+            }
+        </script>
+    </body>
+</html>
